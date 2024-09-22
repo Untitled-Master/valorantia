@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valorant Seasons</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #111823;
+            color: #ffffff;
+            background-image: url('https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/stylizedbackgroundimage.png');
+        }
+
+        .container {
+            margin-top: 50px;
+            background-color: rgba(17, 24, 35, 0.85);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .nav-link {
+            color: #ffffff !important;
+        }
+
+        .nav-link.active {
+            background-color: #ba3a46 !important;
+        }
+
+        .progress-bar {
+            background-color: #ff4654;
+        }
+
+        .banner {
+            width: 100%;
+            height: 200px;
+            background-size: cover;
+            background-position: center;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #time-left {
+            font-size: 1.5em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="banner" style="background-image: url('https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/splash.png');"></div>
+        <ul class="nav nav-tabs" id="seasonTabs">
+            <li class="nav-item">
+                <a class="nav-link active" id="current-season-tab" data-toggle="tab" href="#current-season">Current Season</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="old-seasons-tab" data-toggle="tab" href="#old-seasons">Old Seasons</a>
+            </li>
+        </ul>
+        <div class="tab-content mt-4">
+            <div class="tab-pane fade show active" id="current-season">
+                <h3>Current Season</h3>
+                <div id="current-season-info">
+                    <!-- Current Season Info will be injected here -->
+                </div>
+                <div id="time-left">
+                    <!-- Countdown timer will be injected here -->
+                </div>
+            </div>
+            <div class="tab-pane fade" id="old-seasons">
+                <h3>Old Seasons</h3>
+                <div id="old-seasons-list">
+                    <!-- Old Seasons List will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.4.0/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        const apiUrl = 'https://valorant-api.com/v1/seasons';
+
+        function fetchSeasons() {
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const seasons = data.data;
+                    const currentSeason = seasons.find(season => {
+                        const now = new Date();
+                        return new Date(season.startTime) <= now && new Date(season.endTime) >= now;
+                    });
+
+                    if (currentSeason) {
+                        showCurrentSeason(currentSeason);
+                        startCountdown(currentSeason.endTime);
+                    }
+                    showOldSeasons(seasons.filter(season => season !== currentSeason));
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+
+        function showCurrentSeason(season) {
+            const startTime = new Date(season.startTime);
+            const endTime = new Date(season.endTime);
+            const now = new Date();
+            const totalDuration = endTime - startTime;
+            const elapsed = now - startTime;
+            const progressPercentage = (elapsed / totalDuration) * 100;
+
+            const progressBar = `
+                <div>
+                    <h4>${season.title}</h4>
+                    <p>Ends on: ${endTime.toDateString()}</p>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: ${progressPercentage}%" aria-valuenow="${progressPercentage}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p>${Math.floor(progressPercentage)}% completed</p>
+                </div>
+            `;
+            document.getElementById('current-season-info').innerHTML = progressBar;
+        }
+
+        function showOldSeasons(seasons) {
+            let oldSeasonsHtml = '<ul class="list-group">';
+            seasons.forEach(season => {
+                if (!season.type) return; // Exclude non-Act types (like Episodes)
+                oldSeasonsHtml += `
+                    <li class="list-group-item bg-dark">
+                        <h5>${season.displayName}</h5>
+                        <p>From: ${new Date(season.startTime).toDateString()} To: ${new Date(season.endTime).toDateString()}</p>
+                    </li>
+                `;
+            });
+            oldSeasonsHtml += '</ul>';
+            document.getElementById('old-seasons-list').innerHTML = oldSeasonsHtml;
+        }
+
+        function startCountdown(endTime) {
+            const end = new Date(endTime);
+
+            function updateCountdown() {
+                const now = new Date();
+                const timeLeft = end - now;
+
+                if (timeLeft <= 0) {
+                    document.getElementById('time-left').innerText = 'Season Ended';
+                    return;
+                }
+
+                const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+                document.getElementById('time-left').innerText = `Time Left: ${days}d ${hours}h ${minutes}m ${seconds}s`;
+            }
+
+            updateCountdown(); // Initial call
+            setInterval(updateCountdown, 1000); // Update every second
+        }
+
+        fetchSeasons();
+    </script>
+</body>
+
+</html>
